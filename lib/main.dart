@@ -1,4 +1,4 @@
-import 'package:ecommerces_skl/pages/home_page.dart';
+import 'package:ecommerces_skl/pages/main_page.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -30,9 +30,10 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF03AC0E)),
+        useMaterial3: true,
       ),
-      home: const HomePage(),
+      home: const MainPage(),
     );
   }
 }
