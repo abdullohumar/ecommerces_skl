@@ -1,6 +1,8 @@
 import 'package:ecommerces_skl/components/menu_button.dart';
 import 'package:ecommerces_skl/components/product_card.dart';
+import 'package:ecommerces_skl/models/dummy_cart.dart';
 import 'package:ecommerces_skl/models/dummy_products.dart';
+import 'package:ecommerces_skl/pages/cart_page.dart';
 import 'package:ecommerces_skl/providers/product_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +14,8 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final filteredProducts = ref.watch(filteredProductsProvider);
+    // Sementara masih statis, nanti diganti dengan state Riverpod
+    final cartCount = dummyCartItems.length;
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(
@@ -96,8 +100,21 @@ class HomePage extends ConsumerWidget {
                             ],
                           ),
                           IconButton(
-                            onPressed: () {},
-                            icon: Icon(Icons.shopping_cart_outlined, size: 25.0),
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => const CartPage(),
+                                ),
+                              );
+                            },
+                            icon: Badge(
+                              isLabelVisible: cartCount > 0,
+                              label: Text('$cartCount'),
+                              child: Icon(
+                                Icons.shopping_cart_outlined,
+                                size: 25.0,
+                              ),
+                            ),
                             visualDensity: VisualDensity.compact,
                           ),
                           IconButton(
