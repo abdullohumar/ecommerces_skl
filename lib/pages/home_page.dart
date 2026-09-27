@@ -1,8 +1,8 @@
 import 'package:ecommerces_skl/components/menu_button.dart';
 import 'package:ecommerces_skl/components/product_card.dart';
-import 'package:ecommerces_skl/models/dummy_cart.dart';
 import 'package:ecommerces_skl/models/dummy_products.dart';
 import 'package:ecommerces_skl/pages/cart_page.dart';
+import 'package:ecommerces_skl/providers/cart_provider.dart';
 import 'package:ecommerces_skl/providers/product_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,8 +14,8 @@ class HomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final filteredProducts = ref.watch(filteredProductsProvider);
-    // Sementara masih statis, nanti diganti dengan state Riverpod
-    final cartCount = dummyCartItems.length;
+    // Badge ikut berubah otomatis saat isi keranjang berubah
+    final cartCount = ref.watch(cartCountProvider);
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(

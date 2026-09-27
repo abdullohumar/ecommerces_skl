@@ -1,26 +1,19 @@
 import 'package:ecommerces_skl/models/cart_model.dart';
-import 'package:ecommerces_skl/models/dummy_cart.dart';
+import 'package:ecommerces_skl/providers/cart_provider.dart';
 import 'package:ecommerces_skl/utils/formatter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class CartPage extends StatelessWidget {
+// ConsumerWidget = StatelessWidget yang bisa membaca provider lewat `ref`
+class CartPage extends ConsumerWidget {
   const CartPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Sementara masih statis, nanti diganti dengan state Riverpod
-    final cartItems = dummyCartItems;
-
-    // Nilai turunan dari isi keranjang
-    final selectedItems = cartItems.where((item) => item.isSelected).toList();
-    final isAllSelected =
-        cartItems.isNotEmpty && selectedItems.length == cartItems.length;
-    final totalPrice =
-        selectedItems.fold(0.0, (sum, item) => sum + item.subtotal);
-    final totalSavings =
-        selectedItems.fold(0.0, (sum, item) => sum + item.savings);
-    final selectedQuantity =
-        selectedItems.fold(0, (sum, item) => sum + item.quantity);
+  Widget build(BuildContext context, WidgetRef ref) {
+    // ref.watch -> ambil nilai provider & rebuild saat nilainya berubah
+    final cartItems = ref.watch(cartProvider);
+    final isAllSelected = ref.watch(isAllCartSelectedProvider);
+    final hasSelected = ref.watch(selectedCartItemsProvider).isNotEmpty;
 
     // Kelompokkan barang berdasarkan toko
     final Map<String, List<CartItem>> itemsByStore = {};
@@ -52,15 +45,21 @@ class CartPage extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(4, 4, 8, 4),
                   child: Row(
                     children: [
-                      _CartCheckbox(value: isAllSelected, onChanged: () {}),
+                      _CartCheckbox(
+                        value: isAllSelected,
+                        // ref.read -> ambil notifier untuk memanggil method,
+                        // dipakai di dalam callback (bukan di build)
+                        onChanged: () =>
+                            ref.read(cartProvider.notifier).toggleSelectAll(),
+                      ),
                       Text(
                         'Pilih Semua (${cartItems.length})',
                         style: const TextStyle(fontSize: 14),
                       ),
                       const Spacer(),
-                      if (selectedItems.isNotEmpty)
+                      if (hasSelected)
                         TextButton(
-                          onPressed: () {},
+                          onPressed: () => _confirmRemoveSelected(context, ref),
                           style: TextButton.styleFrom(
                             foregroundColor: const Color(0xFF03AC0E),
                           ),
@@ -100,25 +99,48 @@ class CartPage extends StatelessWidget {
                 ),
               ],
             ),
-      bottomNavigationBar: cartItems.isEmpty
-          ? null
-          : _CartSummaryBar(
-              totalPrice: totalPrice,
-              totalSavings: totalSavings,
-              selectedQuantity: selectedQuantity,
-            ),
+      bottomNavigationBar: cartItems.isEmpty ? null : const _CartSummaryBar(),
     );
+  }
+
+  Future<void> _confirmRemoveSelected(
+      BuildContext context, WidgetRef ref) async {
+    final count = ref.read(selectedCartItemsProvider).length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Hapus $count barang?'),
+        content: const Text(
+            'Barang yang kamu pilih akan dihapus dari keranjang.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF03AC0E),
+            ),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      ref.read(cartProvider.notifier).removeSelected();
+    }
   }
 }
 
-class _StoreSection extends StatelessWidget {
+class _StoreSection extends ConsumerWidget {
   final String storeName;
   final List<CartItem> items;
 
   const _StoreSection({required this.storeName, required this.items});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isAllSelected = items.every((item) => item.isSelected);
     final isOfficial = items.first.product.isOfficial;
 
@@ -132,7 +154,12 @@ class _StoreSection extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(4, 8, 16, 0),
             child: Row(
               children: [
-                _CartCheckbox(value: isAllSelected, onChanged: () {}),
+                _CartCheckbox(
+                  value: isAllSelected,
+                  onChanged: () => ref
+                      .read(cartProvider.notifier)
+                      .toggleSelectStore(storeName),
+                ),
                 Icon(
                   isOfficial ? Icons.verified : Icons.storefront,
                   size: 18,
@@ -160,21 +187,26 @@ class _StoreSection extends StatelessWidget {
   }
 }
 
-class _CartItemTile extends StatelessWidget {
+class _CartItemTile extends ConsumerWidget {
   final CartItem item;
 
   const _CartItemTile({required this.item});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final product = item.product;
+    // Notifier hanya dipakai untuk memanggil method, jadi cukup ref.read
+    final cart = ref.read(cartProvider.notifier);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 8, 16, 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CartCheckbox(value: item.isSelected, onChanged: () {}),
+          _CartCheckbox(
+            value: item.isSelected,
+            onChanged: () => cart.toggleSelect(item.id),
+          ),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.network(
@@ -250,13 +282,23 @@ class _CartItemTile extends StatelessWidget {
                     const SizedBox(width: 4),
                     _SmallIconButton(
                       icon: Icons.delete_outline,
-                      onTap: () {},
+                      onTap: () {
+                        cart.remove(item.id);
+                        ScaffoldMessenger.of(context)
+                          ..hideCurrentSnackBar()
+                          ..showSnackBar(
+                            SnackBar(
+                              content: Text('${product.name} dihapus'),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                      },
                     ),
                     const Spacer(),
                     _QuantityStepper(
                       quantity: item.quantity,
-                      onDecrement: () {},
-                      onIncrement: () {},
+                      onDecrement: () => cart.decrement(item.id),
+                      onIncrement: () => cart.increment(item.id),
                     ),
                   ],
                 ),
@@ -364,19 +406,17 @@ class _QuantityStepper extends StatelessWidget {
   }
 }
 
-class _CartSummaryBar extends StatelessWidget {
-  final double totalPrice;
-  final double totalSavings;
-  final int selectedQuantity;
-
-  const _CartSummaryBar({
-    required this.totalPrice,
-    required this.totalSavings,
-    required this.selectedQuantity,
-  });
+// Widget ini membaca provider turunannya sendiri, jadi tidak perlu
+// menerima totalPrice dll. dari parent lewat constructor
+class _CartSummaryBar extends ConsumerWidget {
+  const _CartSummaryBar();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final totalPrice = ref.watch(cartTotalPriceProvider);
+    final totalSavings = ref.watch(cartTotalSavingsProvider);
+    final selectedQuantity = ref.watch(cartSelectedQuantityProvider);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
