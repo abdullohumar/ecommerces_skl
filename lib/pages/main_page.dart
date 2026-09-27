@@ -1,18 +1,13 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ecommerces_skl/pages/home_page.dart';
+import 'package:ecommerces_skl/providers/navigation_provider.dart';
 
-class MainPage extends StatefulWidget {
+class MainPage extends ConsumerWidget {
   const MainPage({super.key});
 
-  @override
-  State<MainPage> createState() => _MainPageState();
-}
-
-class _MainPageState extends State<MainPage> {
-  int _selectedIndex = 0;
-
   // Daftar halaman untuk setiap tab
-  final List<Widget> _pages = const [
+  static const List<Widget> _pages = [
     HomePage(),
     _PlaceholderPage(icon: Icons.explore_outlined, label: 'Kategori'),
     _PlaceholderPage(icon: Icons.receipt_long_outlined, label: 'Transaksi'),
@@ -21,18 +16,18 @@ class _MainPageState extends State<MainPage> {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedIndex = ref.watch(selectedNavIndexProvider);
+
     return Scaffold(
       body: IndexedStack(
-        index: _selectedIndex,
+        index: selectedIndex,
         children: _pages,
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
+        selectedIndex: selectedIndex,
         onDestinationSelected: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
+          ref.read(selectedNavIndexProvider.notifier).state = index;
         },
         indicatorColor: const Color(0xFFD4EDDA),
         backgroundColor: Colors.white,

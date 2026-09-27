@@ -1,28 +1,17 @@
 import 'package:ecommerces_skl/components/menu_button.dart';
 import 'package:ecommerces_skl/components/product_card.dart';
 import 'package:ecommerces_skl/models/dummy_products.dart';
-import 'package:ecommerces_skl/models/product_model.dart';
+import 'package:ecommerces_skl/providers/product_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HomePage extends StatefulWidget {
+class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  String _selectedCategory = 'Semua';
-
-  List<Product> get _filteredProducts {
-    if (_selectedCategory == 'Semua') return dummyProducts;
-    return dummyProducts
-        .where((p) => p.category == _selectedCategory)
-        .toList();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedCategory = ref.watch(selectedCategoryProvider);
+    final filteredProducts = ref.watch(filteredProductsProvider);
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(
@@ -399,12 +388,11 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final category = productCategories[index];
-                  final isSelected = _selectedCategory == category;
+                  final isSelected = selectedCategory == category;
                   return GestureDetector(
                     onTap: () {
-                      setState(() {
-                        _selectedCategory = category;
-                      });
+                      ref.read(selectedCategoryProvider.notifier).state =
+                          category;
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
@@ -464,9 +452,9 @@ class _HomePageState extends State<HomePage> {
                   mainAxisSpacing: 10,
                   childAspectRatio: 0.57,
                 ),
-                itemCount: _filteredProducts.length,
+                itemCount: filteredProducts.length,
                 itemBuilder: (context, index) {
-                  final product = _filteredProducts[index];
+                  final product = filteredProducts[index];
                   return ProductCard(
                     product: product,
                     onTap: () {
